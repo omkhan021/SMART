@@ -21,7 +21,17 @@ const mockAnalyzer = new MockAnalyzer();
 // Initialize Twitter API service only when needed
 function getTwitterAPI() {
   if (!twitterAPI) {
-    twitterAPI = new TwitterAPIService();
+    try {
+      twitterAPI = new TwitterAPIService();
+      // Check if it's properly configured
+      if (!twitterAPI.isConfigured()) {
+        console.warn('⚠️ Twitter API not configured properly');
+        return null;
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to initialize Twitter API:', error.message);
+      return null;
+    }
   }
   return twitterAPI;
 }
@@ -230,6 +240,9 @@ async function startAnalysisJob(jobId, postId, url, mockMode = false) {
           if (parsedUrl.platform === 'twitter') {
             console.log('🐦 Using Twitter API for scraping');
             const twitterService = getTwitterAPI();
+            if (!twitterService) {
+              throw new Error('Twitter API is not configured. Please set up your Twitter API credentials in the .env file.');
+            }
             scrapedData = await twitterService.scrapeTwitterPost(url, async (progress, message) => {
               job.progress = Math.min(90, 10 + (progress * 0.8));
               await job.save();
