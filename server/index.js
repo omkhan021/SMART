@@ -4,7 +4,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+const config = require('./config');
 
 const { sequelize } = require('./models');
 const analysisRoutes = require('./routes/analysis');
@@ -12,7 +12,7 @@ const resultsRoutes = require('./routes/results');
 const exportRoutes = require('./routes/export');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = config.server.port;
 
 // Security middleware
 app.use(helmet());
@@ -28,7 +28,7 @@ app.use(limiter);
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.CLIENT_URL || ['http://localhost:3000', 'http://localhost:3001'],
+  origin: config.server.corsOrigin,
   credentials: true
 }));
 

@@ -1,10 +1,16 @@
 const OpenAI = require('openai');
+const config = require('../config');
 
 class SentimentAnalyzer {
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+    if (!config.openai.apiKey) {
+      console.warn('⚠️  OpenAI API key not configured. Sentiment analysis will use fallback methods.');
+      this.openai = null;
+    } else {
+      this.openai = new OpenAI({
+        apiKey: config.openai.apiKey
+      });
+    }
   }
 
   /**
@@ -14,6 +20,11 @@ class SentimentAnalyzer {
    */
   async analyzeComment(commentText) {
     try {
+      // Fallback to simple keyword-based analysis if OpenAI is not available
+      if (!this.openai) {
+        return this.fallbackAnalysis(commentText);
+      }
+
       const prompt = `You are an expert sentiment analyst. Analyze the following social media comment and return ONLY a JSON object with these fields:
 - sentiment: (positive/negative/neutral)
 - abuse_level: (safe/profanity/toxic/hate_speech/harassment)
@@ -60,16 +71,46 @@ Comment: ${commentText}`;
 
     } catch (error) {
       console.error('Sentiment analysis error:', error);
-      
-      // Return default analysis on error
-      return {
-        sentiment: 'neutral',
-        abuse_level: 'safe',
-        emotion: 'joy',
-        confidence_score: 0.5,
-        reasoning: 'Analysis failed, defaulting to neutral sentiment'
-      };
+      return this.fallbackAnalysis(commentText);
     }
+  }
+
+  /**
+   * Fallback sentiment analysis using keyword matching
+   * @param {string} commentText - The comment text to analyze
+   * @returns {Object} - Analysis results
+   */
+  fallbackAnalysis(commentText) {
+    const text = commentText.toLowerCase();
+    
+    // Simple keyword-based sentiment analysis
+    const positiveWords = ['good', 'great', 'awesome', 'amazing', 'love', 'like', 'happy', 'excellent', 'fantastic', 'wonderful', 'best', 'perfect'];
+    const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'dislike', 'sad', 'angry', 'horrible', 'worst', 'disgusting', 'stupid', 'dumb'];
+    
+    const positiveCount = positiveWords.filter(word => text.includes(word)).length;
+    const negativeCount = negativeWords.filter(word => text.includes(word)).length;
+    
+    let sentiment = 'neutral';
+    let confidence = 0.5;
+    let emotion = 'joy';
+    
+    if (positiveCount > negativeCount) {
+      sentiment = 'positive';
+      confidence = Math.min(0.8, 0.5 + (positiveCount * 0.1));
+      emotion = 'joy';
+    } else if (negativeCount > positiveCount) {
+      sentiment = 'negative';
+      confidence = Math.min(0.8, 0.5 + (negativeCount * 0.1));
+      emotion = 'anger';
+    }
+    
+    return {
+      sentiment,
+      abuse_level: 'safe',
+      emotion,
+      confidence_score: confidence,
+      reasoning: 'Fallback keyword-based analysis (OpenAI not configured)'
+    };
   }
 
   /**

@@ -1,40 +1,44 @@
 const { TwitterApi } = require('twitter-api-v2');
-const rateLimit = require('express-rate-limit');
+const config = require('../config');
 
 class TwitterAPIService {
   constructor() {
     // Initialize Twitter API client with Bearer Token (OAuth 2.0 Application-Only)
-    this.bearerToken = process.env.TWITTER_BEARER_TOKEN || 'AAAAAAAAAAAAAAAAAAAAAOo%2F0wEAAAAA5COObfxxfRPV19ZwCLyzrufqpJ4%3D4LJrnhgrvMKU8uThD8sUeHbShTPH2EzOJpygRMWadUweWJj136';
+    this.bearerToken = config.twitter.bearerToken;
+    
+    if (!this.bearerToken) {
+      throw new Error('Twitter Bearer Token is required. Please set TWITTER_BEARER_TOKEN in your environment variables.');
+    }
     
     // Use Bearer Token for read-only operations (more reliable)
     this.client = new TwitterApi(this.bearerToken);
     
     // Keep OAuth 1.0a client for write operations (if needed later)
     this.oauthClient = new TwitterApi({
-      appKey: process.env.TWITTER_API_KEY || 'yNmKWFGA9y66L9yAAJ4oB4Hgf',
-      appSecret: process.env.TWITTER_API_SECRET || 'GQQgdK9kNdBCCyC9ESAAZ9bNmRO9oX36bl3ZpfAsUEfe8kGX8E',
-      accessToken: process.env.TWITTER_ACCESS_TOKEN || '1682803693-prsovYjUdGYkso6ExL55ylflB4c9yl2MzfswG47',
-      accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET || 'djrvFY8F0MkPbVy1wyBazFj8IUuOCCenBghV1jQRR5hXp',
+      appKey: config.twitter.apiKey,
+      appSecret: config.twitter.apiSecret,
+      accessToken: config.twitter.accessToken,
+      accessTokenSecret: config.twitter.accessTokenSecret,
     });
 
-    // Rate limiting configuration - Updated to match Twitter API v2 actual limits
+    // Rate limiting configuration from config
     this.rateLimits = {
       tweets: {
-        limit: 300, // Single tweet lookups: 300 per 15 minutes
-        windowMs: 15 * 60 * 1000, // 15 minutes
-        remaining: 300,
+        limit: config.rateLimits.twitter.tweets.limit,
+        windowMs: config.rateLimits.twitter.tweets.windowMs,
+        remaining: config.rateLimits.twitter.tweets.limit,
         resetTime: null
       },
       users: {
-        limit: 300, // User lookups: 300 per 15 minutes
-        windowMs: 15 * 60 * 1000,
-        remaining: 300,
+        limit: config.rateLimits.twitter.users.limit,
+        windowMs: config.rateLimits.twitter.users.windowMs,
+        remaining: config.rateLimits.twitter.users.limit,
         resetTime: null
       },
       search: {
-        limit: 75, // Search tweets: 75 per 15 minutes (MUCH STRICTER!)
-        windowMs: 15 * 60 * 1000,
-        remaining: 75,
+        limit: config.rateLimits.twitter.search.limit,
+        windowMs: config.rateLimits.twitter.search.windowMs,
+        remaining: config.rateLimits.twitter.search.limit,
         resetTime: null
       }
     };

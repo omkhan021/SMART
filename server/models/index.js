@@ -1,14 +1,12 @@
 const { Sequelize, DataTypes } = require('sequelize');
+const config = require('../config');
 
 // Database configuration
 const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: process.env.DATABASE_URL || './database.sqlite',
-  logging: process.env.NODE_ENV === 'development' ? console.log : false,
-  define: {
-    timestamps: true,
-    underscored: true
-  }
+  dialect: config.database.dialect,
+  storage: config.database.storage,
+  logging: config.database.logging,
+  define: config.database.define
 });
 
 // Post model
