@@ -3,38 +3,35 @@ const { body, validationResult } = require('express-validator');
 const { v4: uuidv4 } = require('uuid');
 const { Post, AnalysisJob } = require('../models');
 const URLParser = require('../utils/urlParser');
-const WebScraper = require('../services/webScraper');
-const TwitterAPIService = require('../services/twitterAPIService');
+const PlatformService = require('../services/platformService');
 const SentimentAnalyzer = require('../services/sentimentAnalyzer');
 const DemographicAnalyzer = require('../services/demographicAnalyzer');
 const MockAnalyzer = require('../services/mockAnalyzer');
 
 const router = express.Router();
 const urlParser = new URLParser();
-const webScraper = new WebScraper();
-// Lazy instantiation to avoid startup errors
-let twitterAPI = null;
+const platformService = new PlatformService();
 const sentimentAnalyzer = new SentimentAnalyzer();
 const demographicAnalyzer = new DemographicAnalyzer();
 const mockAnalyzer = new MockAnalyzer();
 
-// Initialize Twitter API service only when needed
-function getTwitterAPI() {
-  if (!twitterAPI) {
-    try {
-      twitterAPI = new TwitterAPIService();
-      // Check if it's properly configured
-      if (!twitterAPI.isConfigured()) {
-        console.warn('⚠️ Twitter API not configured properly');
-        return null;
-      }
-    } catch (error) {
-      console.warn('⚠️ Failed to initialize Twitter API:', error.message);
-      return null;
-    }
+// Platform services are initialized in the PlatformService class
+
+// Get platform services status
+router.get('/services/status', (req, res) => {
+  try {
+    const status = platformService.getAllServicesStatus();
+    res.json({
+      success: true,
+      platforms: status,
+      supported: platformService.getSupportedPlatforms(),
+      configured: platformService.getConfiguredPlatforms()
+    });
+  } catch (error) {
+    console.error('❌ Error getting services status:', error);
+    res.status(500).json({ error: 'Failed to get services status' });
   }
-  return twitterAPI;
-}
+});
 
 // Validation middleware
 const validateAnalysisRequest = [
@@ -259,25 +256,23 @@ async function startAnalysisJob(jobId, postId, url, mockMode = false, refreshDat
         await job.save();
       });
     } else {
-          // Check if it's a Twitter URL and use Twitter API
-          const parsedUrl = urlParser.parseURL(url);
-          if (parsedUrl.platform === 'twitter') {
-            console.log('🐦 Using Twitter API for scraping');
-            const twitterService = getTwitterAPI();
-            if (!twitterService) {
-              throw new Error('Twitter API is not configured. Please set up your Twitter API credentials in the .env file.');
-            }
-            scrapedData = await twitterService.scrapeTwitterPost(url, async (progress, message) => {
-              job.progress = Math.min(90, 10 + (progress * 0.8));
-              await job.save();
-            });
-      } else {
-        console.log('🌐 Using web scraper for other platforms');
-        scrapedData = await webScraper.scrapePost(url, async (progress, message) => {
-          job.progress = Math.min(90, 10 + (progress * 0.8));
-          await job.save();
-        });
+      // Use the appropriate platform service
+      const parsedUrl = urlParser.parseURL(url);
+      console.log(`🚀 Using ${parsedUrl.platform} service for scraping`);
+      
+      if (!platformService.isPlatformSupported(parsedUrl.platform)) {
+        throw new Error(`Unsupported platform: ${parsedUrl.platform}`);
       }
+      
+      const service = platformService.getService(parsedUrl.platform);
+      if (!service.isConfigured()) {
+        throw new Error(`${parsedUrl.platform} service is not configured. Please check your configuration.`);
+      }
+      
+      scrapedData = await platformService.scrapePost(url, parsedUrl.platform, async (progress, message) => {
+        job.progress = Math.min(90, 10 + (progress * 0.8));
+        await job.save();
+      });
     }
 
     // Update post with scraped data

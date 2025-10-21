@@ -23,3 +23,4 @@ echo "   - TWITTER_BEARER_TOKEN"
 echo ""
 echo "🔒 The .env file is gitignored for security"
 echo "🚀 After updating the credentials, restart the server"
+

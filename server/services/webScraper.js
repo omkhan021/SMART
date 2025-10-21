@@ -1,6 +1,9 @@
 const puppeteer = require('puppeteer');
 const UserAgent = require('user-agents');
 const URLParser = require('../utils/urlParser');
+const { exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 
 class WebScraper {
   constructor() {
