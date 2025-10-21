@@ -296,10 +296,43 @@ async function startAnalysisJob(jobId, postId, url, mockMode = false, refreshDat
     // Step 2: Analyze sentiment and demographics
     let analyzedComments, demographicResults;
     
-    if (mockMode) {
-      // Comments already have analysis data from mock analyzer
-      analyzedComments = scrapedData.comments;
-      demographicResults = scrapedData.demographics;
+    if (mockMode || scrapedData.isMockData) {
+      // Comments already have analysis data from mock analyzer or Instagram mock data
+      if (scrapedData.isMockData) {
+        console.log(`📊 Processing ${scrapedData.comments.length} Instagram mock comments`);
+        
+        // Instagram mock data - generate realistic analysis
+        analyzedComments = scrapedData.comments.map(comment => ({
+          ...comment,
+          analysis: {
+            sentiment: ['positive', 'neutral', 'negative'][Math.floor(Math.random() * 3)],
+            abuse_level: Math.random() > 0.9 ? ['profanity', 'toxic'][Math.floor(Math.random() * 2)] : 'safe',
+            emotion: ['joy', 'anger', 'sadness', 'fear', 'surprise', 'disgust'][Math.floor(Math.random() * 6)],
+            confidence_score: Math.random() * 0.4 + 0.6, // 0.6-1.0
+            reasoning: 'Mock analysis for Instagram demonstration'
+          }
+        }));
+        
+        // Generate mock demographics
+        const uniqueUsers = [...new Set(scrapedData.comments.map(c => c.username))];
+        demographicResults = uniqueUsers.map(username => ({
+          username,
+          predicted_age: Math.floor(Math.random() * 40) + 18, // 18-58
+          age_confidence: Math.random() * 0.3 + 0.7, // 0.7-1.0
+          predicted_gender: ['male', 'female'][Math.floor(Math.random() * 2)],
+          gender_confidence: Math.random() * 0.3 + 0.7, // 0.7-1.0
+          predicted_location_country: ['United States', 'United Kingdom', 'Canada', 'Australia', 'Germany'][Math.floor(Math.random() * 5)],
+          predicted_location_state: 'Unknown',
+          predicted_location_city: 'Unknown',
+          location_confidence: Math.random() * 0.2 + 0.5, // 0.5-0.7
+          profile_picture_url: null,
+          bio_text: null
+        }));
+      } else {
+        // Regular mock mode
+        analyzedComments = scrapedData.comments;
+        demographicResults = scrapedData.demographics;
+      }
       job.progress = 98;
       await job.save();
     } else {

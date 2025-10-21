@@ -7,6 +7,8 @@ class SentimentAnalyzer {
       console.warn('⚠️  OpenAI API key not configured. Sentiment analysis will use fallback methods.');
       this.openai = null;
     } else {
+      console.log("OMK Open AI Key : ", config.openai.apiKey);
+
       this.openai = new OpenAI({
         apiKey: config.openai.apiKey
       });
