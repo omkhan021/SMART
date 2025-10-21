@@ -7,7 +7,10 @@ class TwitterAPIService {
     this.bearerToken = config.twitter.bearerToken;
     
     if (!this.bearerToken) {
-      throw new Error('Twitter Bearer Token is required. Please set TWITTER_BEARER_TOKEN in your environment variables.');
+      console.warn('⚠️  Twitter Bearer Token not configured. Twitter API features will be disabled.');
+      this.bearerToken = null;
+      this.client = null;
+      return;
     }
     
     // Use Bearer Token for read-only operations (more reliable)
@@ -46,6 +49,13 @@ class TwitterAPIService {
     // Request queue to manage rate limits
     this.requestQueue = [];
     this.isProcessing = false;
+  }
+
+  /**
+   * Check if the Twitter API service is properly configured
+   */
+  isConfigured() {
+    return this.client !== null && this.bearerToken !== null;
   }
 
   /**
@@ -145,13 +155,14 @@ class TwitterAPIService {
     try {
       console.log(`🐦 Fetching tweet ${tweetId}...`);
       
+      // No delay needed - we're only making 2 calls total
+      
+      // Optimize: Get only essential tweet data to reduce rate limit usage
       const tweet = await this.client.v2.singleTweet(tweetId, {
         'tweet.fields': [
-          'id', 'text', 'author_id', 'created_at', 'public_metrics',
-          'context_annotations', 'entities', 'lang'
-        ],
-        'user.fields': ['id', 'username', 'name', 'public_metrics'],
-        'expansions': ['author_id']
+          'id', 'text', 'author_id', 'created_at', 'public_metrics'
+        ]
+        // Removed user.fields and expansions to avoid additional API calls
       });
 
       // Update rate limit from response headers (if available)
@@ -181,11 +192,9 @@ class TwitterAPIService {
     try {
       console.log(`🐦 Fetching replies for tweet ${tweetId}...`);
       
-      // Check if we can make a search request (much stricter limits)
-      if (!this.canMakeRequest('search')) {
-        console.log(`⏳ Search rate limit reached. Skipping replies for now.`);
-        return { data: { data: [] }, includes: { users: [] } };
-      }
+      // No delay needed - we're only making 2 calls total
+      
+      // No need to check rate limits - we're only making 2 calls total
       
       const replies = await this.client.v2.search(`conversation_id:${tweetId}`, {
         'tweet.fields': [
@@ -260,6 +269,10 @@ class TwitterAPIService {
    */
   async scrapeTwitterPost(url, progressCallback = null) {
     try {
+      if (!this.isConfigured()) {
+        throw new Error('Twitter API service is not properly configured. Please check your environment variables.');
+      }
+
       console.log(`🚀 Starting Twitter scraping for: ${url}`);
       
       if (progressCallback) {
@@ -281,17 +294,22 @@ class TwitterAPIService {
       // Get the main tweet
       const tweetResponse = await this.getTweet(tweetId, progressCallback);
       const tweet = tweetResponse.data;
-      const author = tweetResponse.includes?.users?.[0];
+      
+      // Since we removed user expansions to save rate limits, we'll use the author_id
+      const author = {
+        username: tweet.author_id, // We'll use author_id as username for now
+        id: tweet.author_id
+      };
 
       if (progressCallback) {
         progressCallback(40, 'Fetching replies...');
       }
 
-      // Skip replies for now to avoid search API rate limits
-      // TODO: Implement alternative method for getting replies
-      console.log('⚠️ Skipping replies to avoid search API rate limits');
-      let replies = [];
-      let replyUsers = [];
+          // Fetch replies using the search API
+          console.log('🐦 Fetching replies...');
+          const repliesResponse = await this.getTweetReplies(tweetId, 50, progressCallback);
+          const replies = repliesResponse.data?.data || [];
+          const replyUsers = repliesResponse.includes?.users || [];
 
       if (progressCallback) {
         progressCallback(70, 'Processing data...');

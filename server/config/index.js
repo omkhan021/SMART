@@ -31,22 +31,22 @@ const config = {
   },
 
   // Rate Limiting Configuration
-  rateLimits: {
-    twitter: {
-      tweets: {
-        limit: parseInt(process.env.TWITTER_RATE_LIMIT_TWEETS) || 300,
-        windowMs: parseInt(process.env.TWITTER_RATE_WINDOW_MS) || (15 * 60 * 1000) // 15 minutes
-      },
-      users: {
-        limit: parseInt(process.env.TWITTER_RATE_LIMIT_USERS) || 300,
-        windowMs: parseInt(process.env.TWITTER_RATE_WINDOW_MS) || (15 * 60 * 1000)
-      },
-      search: {
-        limit: parseInt(process.env.TWITTER_RATE_LIMIT_SEARCH) || 75,
-        windowMs: parseInt(process.env.TWITTER_RATE_WINDOW_MS) || (15 * 60 * 1000)
+    rateLimits: {
+      twitter: {
+        tweets: {
+          limit: parseInt(process.env.TWITTER_RATE_LIMIT_TWEETS) || 300, // Free tier allows 300 per 15 minutes
+          windowMs: parseInt(process.env.TWITTER_RATE_WINDOW_MS) || (15 * 60 * 1000) // 15 minutes
+        },
+        users: {
+          limit: parseInt(process.env.TWITTER_RATE_LIMIT_USERS) || 300, // Free tier allows 300 per 15 minutes
+          windowMs: parseInt(process.env.TWITTER_RATE_WINDOW_MS) || (15 * 60 * 1000)
+        },
+        search: {
+          limit: parseInt(process.env.TWITTER_RATE_LIMIT_SEARCH) || 75, // Free tier allows 75 per 15 minutes
+          windowMs: parseInt(process.env.TWITTER_RATE_WINDOW_MS) || (15 * 60 * 1000)
+        }
       }
-    }
-  },
+    },
 
   // OpenAI Configuration
   openai: {

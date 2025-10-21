@@ -12,10 +12,19 @@ const MockAnalyzer = require('../services/mockAnalyzer');
 const router = express.Router();
 const urlParser = new URLParser();
 const webScraper = new WebScraper();
-const twitterAPI = new TwitterAPIService();
+// Lazy instantiation to avoid startup errors
+let twitterAPI = null;
 const sentimentAnalyzer = new SentimentAnalyzer();
 const demographicAnalyzer = new DemographicAnalyzer();
 const mockAnalyzer = new MockAnalyzer();
+
+// Initialize Twitter API service only when needed
+function getTwitterAPI() {
+  if (!twitterAPI) {
+    twitterAPI = new TwitterAPIService();
+  }
+  return twitterAPI;
+}
 
 // Validation middleware
 const validateAnalysisRequest = [
@@ -216,14 +225,15 @@ async function startAnalysisJob(jobId, postId, url, mockMode = false) {
         await job.save();
       });
     } else {
-      // Check if it's a Twitter URL and use Twitter API
-      const parsedUrl = urlParser.parseURL(url);
-      if (parsedUrl.platform === 'twitter') {
-        console.log('🐦 Using Twitter API for scraping');
-        scrapedData = await twitterAPI.scrapeTwitterPost(url, async (progress, message) => {
-          job.progress = Math.min(90, 10 + (progress * 0.8));
-          await job.save();
-        });
+          // Check if it's a Twitter URL and use Twitter API
+          const parsedUrl = urlParser.parseURL(url);
+          if (parsedUrl.platform === 'twitter') {
+            console.log('🐦 Using Twitter API for scraping');
+            const twitterService = getTwitterAPI();
+            scrapedData = await twitterService.scrapeTwitterPost(url, async (progress, message) => {
+              job.progress = Math.min(90, 10 + (progress * 0.8));
+              await job.save();
+            });
       } else {
         console.log('🌐 Using web scraper for other platforms');
         scrapedData = await webScraper.scrapePost(url, async (progress, message) => {
