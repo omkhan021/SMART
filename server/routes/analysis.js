@@ -234,12 +234,20 @@ async function startAnalysisJob(jobId, postId, url, mockMode = false) {
     }
 
     // Update post with scraped data
-    post.post_author = scrapedData.post.author;
-    post.post_content = scrapedData.post.content;
-    post.total_comments = scrapedData.post.total_comments;
+    if (mockMode) {
+      // Mock analyzer returns postData instead of post
+      post.post_author = scrapedData.postData.author;
+      post.post_content = scrapedData.postData.content;
+      post.total_comments = scrapedData.totalComments;
+    } else {
+      // Real scrapers return post
+      post.post_author = scrapedData.post.author;
+      post.post_content = scrapedData.post.content;
+      post.total_comments = scrapedData.post.total_comments;
+    }
     await post.save();
 
-    job.total_comments = scrapedData.post.total_comments;
+    job.total_comments = mockMode ? scrapedData.totalComments : scrapedData.post.total_comments;
     job.progress = 90;
     await job.save();
 

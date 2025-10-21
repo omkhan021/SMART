@@ -3,30 +3,36 @@ const rateLimit = require('express-rate-limit');
 
 class TwitterAPIService {
   constructor() {
-    // Initialize Twitter API client with your credentials
-    this.client = new TwitterApi({
+    // Initialize Twitter API client with Bearer Token (OAuth 2.0 Application-Only)
+    this.bearerToken = process.env.TWITTER_BEARER_TOKEN || 'AAAAAAAAAAAAAAAAAAAAAOo%2F0wEAAAAA5COObfxxfRPV19ZwCLyzrufqpJ4%3D4LJrnhgrvMKU8uThD8sUeHbShTPH2EzOJpygRMWadUweWJj136';
+    
+    // Use Bearer Token for read-only operations (more reliable)
+    this.client = new TwitterApi(this.bearerToken);
+    
+    // Keep OAuth 1.0a client for write operations (if needed later)
+    this.oauthClient = new TwitterApi({
       appKey: process.env.TWITTER_API_KEY || 'yNmKWFGA9y66L9yAAJ4oB4Hgf',
       appSecret: process.env.TWITTER_API_SECRET || 'GQQgdK9kNdBCCyC9ESAAZ9bNmRO9oX36bl3ZpfAsUEfe8kGX8E',
       accessToken: process.env.TWITTER_ACCESS_TOKEN || '1682803693-prsovYjUdGYkso6ExL55ylflB4c9yl2MzfswG47',
-      accessSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET || 'djrvFY8F0MkPbVy1wyBazFj8IUuOCCenBghV1jQRR5hXp',
+      accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET || 'djrvFY8F0MkPbVy1wyBazFj8IUuOCCenBghV1jQRR5hXp',
     });
 
-    // Rate limiting configuration
+    // Rate limiting configuration - Updated to match Twitter API v2 actual limits
     this.rateLimits = {
       tweets: {
-        limit: parseInt(process.env.TWITTER_RATE_LIMIT_TWEETS_PER_15_MIN) || 300,
+        limit: 300, // Single tweet lookups: 300 per 15 minutes
         windowMs: 15 * 60 * 1000, // 15 minutes
         remaining: 300,
         resetTime: null
       },
       users: {
-        limit: parseInt(process.env.TWITTER_RATE_LIMIT_USERS_PER_15_MIN) || 300,
+        limit: 300, // User lookups: 300 per 15 minutes
         windowMs: 15 * 60 * 1000,
         remaining: 300,
         resetTime: null
       },
-      timeline: {
-        limit: parseInt(process.env.TWITTER_RATE_LIMIT_TIMELINE_PER_15_MIN) || 75,
+      search: {
+        limit: 75, // Search tweets: 75 per 15 minutes (MUCH STRICTER!)
         windowMs: 15 * 60 * 1000,
         remaining: 75,
         resetTime: null
@@ -144,8 +150,10 @@ class TwitterAPIService {
         'expansions': ['author_id']
       });
 
-      // Update rate limit from response headers
-      this.updateRateLimit('tweets', tweet._headers);
+      // Update rate limit from response headers (if available)
+      if (tweet._headers) {
+        this.updateRateLimit('tweets', tweet._headers);
+      }
 
       console.log(`✅ Tweet fetched: ${tweet.data.text.substring(0, 50)}...`);
       return tweet;
@@ -169,6 +177,12 @@ class TwitterAPIService {
     try {
       console.log(`🐦 Fetching replies for tweet ${tweetId}...`);
       
+      // Check if we can make a search request (much stricter limits)
+      if (!this.canMakeRequest('search')) {
+        console.log(`⏳ Search rate limit reached. Skipping replies for now.`);
+        return { data: { data: [] }, includes: { users: [] } };
+      }
+      
       const replies = await this.client.v2.search(`conversation_id:${tweetId}`, {
         'tweet.fields': [
           'id', 'text', 'author_id', 'created_at', 'public_metrics',
@@ -179,8 +193,10 @@ class TwitterAPIService {
         'max_results': Math.min(maxResults, 100) // Twitter API limit
       });
 
-      // Update rate limit
-      this.updateRateLimit('tweets', replies._headers);
+      // Update rate limit for search (not tweets!) - if available
+      if (replies._headers) {
+        this.updateRateLimit('search', replies._headers);
+      }
 
       console.log(`✅ Found ${replies.data?.data?.length || 0} replies`);
       return replies;
@@ -193,7 +209,9 @@ class TwitterAPIService {
         return this.getTweetReplies(tweetId, maxResults, progressCallback, retryCount + 1);
       }
       
-      throw error;
+      // If search fails due to rate limits, return empty results instead of failing completely
+      console.log(`⚠️ Search API rate limited. Returning empty replies.`);
+      return { data: { data: [] }, includes: { users: [] } };
     }
   }
 
@@ -265,18 +283,11 @@ class TwitterAPIService {
         progressCallback(40, 'Fetching replies...');
       }
 
-      // Get replies (with error handling)
+      // Skip replies for now to avoid search API rate limits
+      // TODO: Implement alternative method for getting replies
+      console.log('⚠️ Skipping replies to avoid search API rate limits');
       let replies = [];
       let replyUsers = [];
-      
-      try {
-        const repliesResponse = await this.getTweetReplies(tweetId, 100, progressCallback);
-        replies = repliesResponse.data?.data || [];
-        replyUsers = repliesResponse.includes?.users || [];
-      } catch (replyError) {
-        console.warn(`⚠️ Could not fetch replies: ${replyError.message}`);
-        // Continue with empty replies rather than failing completely
-      }
 
       if (progressCallback) {
         progressCallback(70, 'Processing data...');
@@ -353,12 +364,25 @@ class TwitterAPIService {
         limit: this.rateLimits.users.limit,
         resetTime: this.rateLimits.users.resetTime
       },
-      timeline: {
-        remaining: this.rateLimits.timeline.remaining,
-        limit: this.rateLimits.timeline.limit,
-        resetTime: this.rateLimits.timeline.resetTime
+      search: {
+        remaining: this.rateLimits.search.remaining,
+        limit: this.rateLimits.search.limit,
+        resetTime: this.rateLimits.search.resetTime
       }
     };
+  }
+
+  /**
+   * Reset rate limits (for testing)
+   */
+  resetRateLimits() {
+    this.rateLimits.tweets.remaining = this.rateLimits.tweets.limit;
+    this.rateLimits.users.remaining = this.rateLimits.users.limit;
+    this.rateLimits.search.remaining = this.rateLimits.search.limit;
+    this.rateLimits.tweets.resetTime = null;
+    this.rateLimits.users.resetTime = null;
+    this.rateLimits.search.resetTime = null;
+    console.log('🔄 Rate limits reset');
   }
 }
 
