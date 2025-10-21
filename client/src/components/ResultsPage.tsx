@@ -198,7 +198,7 @@ export function ResultsPage() {
                 Positive Sentiment
               </h3>
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {results.statistics.sentiment.sentimentPercentages.positive.toFixed(1)}%
+                {results.statistics?.sentiment?.sentimentPercentages?.positive?.toFixed(1) || '0.0'}%
               </p>
             </div>
             <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
@@ -206,7 +206,7 @@ export function ResultsPage() {
                 Negative Sentiment
               </h3>
               <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                {results.statistics.sentiment.sentimentPercentages.negative.toFixed(1)}%
+                {results.statistics?.sentiment?.sentimentPercentages?.negative?.toFixed(1) || '0.0'}%
               </p>
             </div>
             <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
@@ -214,35 +214,111 @@ export function ResultsPage() {
                 Avg Confidence
               </h3>
               <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                {(results.statistics.sentiment.averageConfidence * 100).toFixed(1)}%
+                {results.statistics?.sentiment?.averageConfidence ? (results.statistics.sentiment.averageConfidence * 100).toFixed(1) : '0.0'}%
               </p>
             </div>
           </div>
         </div>
 
         {/* Sentiment Analysis Charts */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Sentiment Analysis
-          </h2>
-          <SentimentChart data={results.statistics.sentiment} />
-        </div>
+        {results.statistics?.sentiment && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Sentiment Analysis
+            </h2>
+            <SentimentChart data={results.statistics.sentiment} />
+          </div>
+        )}
 
         {/* Demographics Charts */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Demographics Analysis
-          </h2>
-          <DemographicsChart data={results.statistics.demographics} />
-        </div>
+        {results.statistics?.demographics && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Demographics Analysis
+            </h2>
+            <DemographicsChart data={results.statistics.demographics} />
+          </div>
+        )}
 
         {/* Comments List */}
+        {results.comments?.data && results.comments.data.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Comments Breakdown
+            </h2>
+            <CommentList comments={results.comments.data} />
+          </div>
+        )}
+
+        {/* Tweet Content */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Comments Breakdown
+            Tweet Content
           </h2>
-          <CommentList comments={results.comments.data} />
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-start space-x-4">
+              <div className="flex-shrink-0">
+                <div className="h-12 w-12 bg-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">
+                    {results.post.post_author?.charAt(0)?.toUpperCase() || '?'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-2 mb-2">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    @{results.post.post_author || 'unknown'}
+                  </h3>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    • {new Date(results.post.created_at || Date.now()).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-gray-900 dark:text-white whitespace-pre-wrap">
+                  {results.post.post_content || 'No content available'}
+                </p>
+                <div className="flex items-center space-x-6 mt-4 text-sm text-gray-500 dark:text-gray-400">
+                  <span>❤️ {results.post.likes_count || 0}</span>
+                  <span>🔄 {results.post.retweets_count || 0}</span>
+                  <span>💬 {results.post.total_comments || 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* No Comments Message */}
+        {(!results.comments?.data || results.comments.data.length === 0) && (
+          <div className="mb-8">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-8 w-8 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-lg font-medium text-yellow-800 dark:text-yellow-200">
+                    No Comments Found
+                  </h3>
+                  <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
+                    <p>
+                      This tweet doesn't have any replies to analyze. This could be because:
+                    </p>
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li>The tweet is very recent</li>
+                      <li>The tweet has replies disabled</li>
+                      <li>The tweet is from a private account</li>
+                      <li>We're avoiding search API rate limits</li>
+                    </ul>
+                    <p className="mt-3 font-medium">
+                      💡 <strong>Tip:</strong> Try analyzing a tweet with more engagement or use Demo Mode to see the full functionality.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
