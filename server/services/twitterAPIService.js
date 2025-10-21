@@ -201,8 +201,7 @@ class TwitterAPIService {
           'id', 'text', 'author_id', 'created_at', 'public_metrics',
           'context_annotations', 'entities', 'lang', 'in_reply_to_user_id'
         ],
-        'user.fields': ['id', 'username', 'name', 'public_metrics', 'verified'],
-        'expansions': ['author_id'],
+        // Removed user.fields and expansions to avoid additional API calls
         'max_results': Math.min(maxResults, 100) // Twitter API limit
       });
 

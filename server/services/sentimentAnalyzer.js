@@ -81,6 +81,18 @@ Comment: ${commentText}`;
    * @returns {Object} - Analysis results
    */
   fallbackAnalysis(commentText) {
+    // Handle undefined or null comment text
+    if (!commentText || typeof commentText !== 'string') {
+      console.warn('⚠️ Invalid comment text provided to fallbackAnalysis:', commentText);
+      return {
+        sentiment: 'neutral',
+        abuse_level: 'safe',
+        emotion: 'neutral',
+        confidence_score: 0.5,
+        reasoning: 'Fallback analysis - invalid comment text'
+      };
+    }
+    
     const text = commentText.toLowerCase();
     
     // Simple keyword-based sentiment analysis

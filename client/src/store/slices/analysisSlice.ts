@@ -5,10 +5,10 @@ import apiClient from '@/utils/api';
 // Async thunks
 export const startAnalysis = createAsyncThunk(
   'analysis/startAnalysis',
-  async ({ url, mockMode = false }: { url: string; mockMode?: boolean }, { rejectWithValue }) => {
+  async ({ url, mockMode = false, refreshData = false }: { url: string; mockMode?: boolean; refreshData?: boolean }, { rejectWithValue }) => {
     try {
-      console.log('🔄 Redux: Starting analysis for URL:', url, 'Mock Mode:', mockMode);
-      const response = await apiClient.post('/api/analyze', { url, mockMode });
+      console.log('🔄 Redux: Starting analysis for URL:', url, 'Mock Mode:', mockMode, 'Refresh Data:', refreshData);
+      const response = await apiClient.post('/api/analyze', { url, mockMode, refreshData });
       console.log('✅ Redux: Analysis started successfully:', response.data);
       
       // Map backend response to frontend AnalysisJob interface

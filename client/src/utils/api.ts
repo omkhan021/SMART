@@ -44,7 +44,7 @@ apiClient.interceptors.response.use(
 
 // Export functions for different API endpoints
 export const analysisAPI = {
-  startAnalysis: (url: string, mockMode: boolean = false) => apiClient.post('/api/analyze', { url, mockMode }),
+  startAnalysis: (url: string, mockMode: boolean = false, refreshData: boolean = false) => apiClient.post('/api/analyze', { url, mockMode, refreshData }),
   checkStatus: (jobId: string) => apiClient.get(`/api/analyze/status/${jobId}`),
   getResults: (jobId: string, params?: Record<string, unknown>) => apiClient.get(`/api/results/${jobId}`, { params }),
   getSummary: (jobId: string) => apiClient.get(`/api/results/${jobId}/summary`),

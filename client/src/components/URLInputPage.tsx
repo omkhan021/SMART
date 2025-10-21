@@ -16,6 +16,7 @@ export function URLInputPage() {
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState('');
   const [mockMode, setMockMode] = useState(false);
+  const [refreshData, setRefreshData] = useState(false);
 
   // Clear any old error state and job data when component loads
   useEffect(() => {
@@ -55,10 +56,10 @@ export function URLInputPage() {
       return;
     }
 
-    console.log('🚀 Starting analysis for URL:', url, 'Mock Mode:', mockMode);
+    console.log('🚀 Starting analysis for URL:', url, 'Mock Mode:', mockMode, 'Refresh Data:', refreshData);
     
     try {
-      const result = await dispatch(startAnalysis({ url, mockMode }));
+      const result = await dispatch(startAnalysis({ url, mockMode, refreshData }));
       console.log('📊 Analysis result:', result);
       console.log('📊 Analysis result payload:', result.payload);
       
@@ -151,19 +152,36 @@ export function URLInputPage() {
             )}
           </div>
 
-          {/* Mock Mode Toggle */}
-          <div className="flex items-center justify-center space-x-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-            <input
-              type="checkbox"
-              id="mockMode"
-              checked={mockMode}
-              onChange={(e) => setMockMode(e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label htmlFor="mockMode" className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-              Demo Mode (Use Mock Data)
-            </label>
-          </div>
+            {/* Options */}
+            <div className="space-y-4">
+              {/* Mock Mode Toggle */}
+              <div className="flex items-center justify-center space-x-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <input
+                  type="checkbox"
+                  id="mockMode"
+                  checked={mockMode}
+                  onChange={(e) => setMockMode(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="mockMode" className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                  Demo Mode (Use Mock Data)
+                </label>
+              </div>
+
+              {/* Refresh Data Toggle */}
+              <div className="flex items-center justify-center space-x-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <input
+                  type="checkbox"
+                  id="refreshData"
+                  checked={refreshData}
+                  onChange={(e) => setRefreshData(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="refreshData" className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  Refresh Data (Skip Cache)
+                </label>
+              </div>
+            </div>
           <div className="text-center">
             <p className="text-xs text-yellow-700 dark:text-yellow-300 mb-4">
               Enable demo mode to see how the analysis would work with sample data, bypassing platform restrictions.

@@ -70,8 +70,10 @@ router.post('/', validateAnalysisRequest, async (req, res) => {
       });
     }
 
-    const { url, mockMode = false } = req.body;
-    console.log('🔍 Processing URL:', url, 'Mock Mode:', mockMode);
+    const { url, mockMode = false, refreshData = false } = req.body;
+    console.log('🔍 Processing URL:', url, 'Mock Mode:', mockMode, 'Refresh Data:', refreshData);
+    console.log('🔍 Request body keys:', Object.keys(req.body));
+    console.log('🔍 refreshData type:', typeof refreshData, 'value:', refreshData);
     
     // Parse URL to get platform and post ID
     let parsedUrl;
@@ -96,27 +98,48 @@ router.post('/', validateAnalysisRequest, async (req, res) => {
       where: { original_url: url }
     });
 
-    if (post) {
-      // If post exists and analysis is completed, return existing results
+    // If refreshing data and post exists, delete existing jobs and reset status
+    if (post && refreshData) {
+      const deletedCount = await AnalysisJob.destroy({
+        where: { post_id: post.id }
+      });
+      console.log(`🔄 Refreshing data for existing post: ${post.id}`);
+      console.log(`🗑️ Deleted ${deletedCount} existing analysis job(s) for post: ${post.id}`);
+      
+      post.analysis_status = 'pending';
+      await post.save();
+      
+      // Verify no jobs exist for this post
+      const remainingJobs = await AnalysisJob.count({
+        where: { post_id: post.id }
+      });
+      console.log(`✅ Verification: ${remainingJobs} jobs remaining for post: ${post.id}`);
+    } else if (post && !refreshData) {
+      // If post exists and analysis is completed, return existing results (only if not refreshing)
+      console.log(`🔍 Post status: ${post.analysis_status} for post: ${post.id}`);
       if (post.analysis_status === 'completed') {
         const job = await AnalysisJob.findOne({
           where: { post_id: post.id },
           order: [['createdAt', 'DESC']]
         });
+        
+        console.log(`🔍 Found existing job: ${job?.id} for post: ${post.id}`);
 
         return res.json({
           jobId: job.id,
           status: 'completed',
           message: 'Analysis already completed for this post'
         });
+      } else {
+        console.log(`🔍 Post status is not completed (${post.analysis_status}), continuing with new analysis`);
       }
+    }
       
-      // If post exists but analysis failed, restart analysis
-      if (post.analysis_status === 'failed') {
-        post.analysis_status = 'pending';
-        await post.save();
-      }
-    } else {
+    // If post exists but analysis failed, restart analysis
+    if (post && post.analysis_status === 'failed') {
+      post.analysis_status = 'pending';
+      await post.save();
+    } else if (!post) {
       // Create new post record
       post = await Post.create({
         platform: parsedUrl.platform,
@@ -126,6 +149,7 @@ router.post('/', validateAnalysisRequest, async (req, res) => {
         analysis_status: 'pending'
       });
     }
+
 
     // Create analysis job
     console.log('📋 Creating analysis job for post:', post.id);
@@ -138,7 +162,7 @@ router.post('/', validateAnalysisRequest, async (req, res) => {
 
     // Start background analysis (don't await)
     console.log('🔄 Starting background analysis...');
-    startAnalysisJob(job.id, post.id, url, mockMode).catch(error => {
+    startAnalysisJob(job.id, post.id, url, mockMode, refreshData).catch(error => {
       console.error('💥 Analysis job failed:', error);
     });
 
@@ -204,7 +228,7 @@ router.get('/status/:jobId', async (req, res) => {
 /**
  * Background function to process analysis job
  */
-async function startAnalysisJob(jobId, postId, url, mockMode = false) {
+async function startAnalysisJob(jobId, postId, url, mockMode = false, refreshData = false) {
   try {
     const job = await AnalysisJob.findByPk(jobId);
     const post = await Post.findByPk(postId);
